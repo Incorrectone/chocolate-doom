@@ -65,3 +65,17 @@ GTAGS
 # clangd settings
 /.cache/clangd
 compile_commands.json
+/build/
+*.mp4
+*.wav
+*.log
+/cfg*.cfg
+/a.txt
+/b.txt
+/sa.txt
+/sb.txt
+/ev*.txt
+/s[0-9]*.txt
+/n[0-9]*.txt
+/sounds*.txt
+/gaps*.txt

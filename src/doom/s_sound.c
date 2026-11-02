@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "i_sound.h"
 #include "i_system.h"
@@ -510,7 +511,13 @@ void S_StartSound(void *origin_p, int sfx_id)
 	            snd_log = fopen(getenv("SNDLOG"), "w");
 	            if (snd_log) setvbuf(snd_log, NULL, _IOLBF, 0);
 	        }
-	    if (snd_log) fprintf(snd_log, "%d %d %d %d %d\n", gametic, sfx_id, volume, sep, pitch);
+	    if (snd_log)
+	        {
+	            struct timespec ts;
+	            clock_gettime(CLOCK_REALTIME, &ts);
+	            fprintf(snd_log, "%d %d %d %d %d %.6f\n", gametic, sfx_id, volume, sep, pitch,
+	                    ts.tv_sec + ts.tv_nsec / 1e9);
+	        }
     }
 
 
