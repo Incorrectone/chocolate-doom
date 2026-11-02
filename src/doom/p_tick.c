@@ -50,7 +50,21 @@ void P_InitThinkers (void)
     thinkercap.prev = thinkercap.next  = &thinkercap;
 }
 
-
+//
+// fnv
+// simple fnv hash function
+//
+static unsigned int fnv(unsigned int h, int v)
+{
+    unsigned char *b = (unsigned char *) &v;
+    int k;
+    for (k = 0; k < 4; k++)
+    {
+        h ^= b[k];
+        h *= 16777619u;
+    }
+    return h;
+}
 
 
 //
@@ -164,7 +178,6 @@ void P_Ticker (void)
 
     // for par times
     leveltime++;	
-
     {
         static FILE *st_log = NULL;
         if (!st_log && getenv("STATELOG"))
@@ -175,8 +188,33 @@ void P_Ticker (void)
         if (st_log && players[consoleplayer].mo)
         {
             mobj_t *m = players[consoleplayer].mo;
-            fprintf(st_log, "%d %d %d %d %d\n", gametic,
-                    m->x, m->y, (int)m->angle, players[consoleplayer].health);
+            unsigned int wh = 2166136261u;
+            thinker_t *th;
+            int s;
+
+            // every map object: monsters, projectiles, items, the player
+            for (th = thinkercap.next; th != &thinkercap; th = th->next)
+            {
+                if (th->function.acp1 == (actionf_p1) P_MobjThinker)
+                {
+                    mobj_t *mo = (mobj_t *) th;
+                    wh = fnv(wh, mo->type);
+                    wh = fnv(wh, mo->x);
+                    wh = fnv(wh, mo->y);
+                    wh = fnv(wh, mo->z);
+                    wh = fnv(wh, mo->health);
+                    wh = fnv(wh, mo->tics);
+                }
+            }
+            // moving doors, lifts, crushers
+            for (s = 0; s < numsectors; s++)
+            {
+                wh = fnv(wh, sectors[s].floorheight);
+                wh = fnv(wh, sectors[s].ceilingheight);
+            }
+
+            fprintf(st_log, "%d %d %d %d %d %u\n", gametic,
+                    m->x, m->y, (int)m->angle, players[consoleplayer].health, wh);
         }
     }
 }
