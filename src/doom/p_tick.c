@@ -20,7 +20,9 @@
 
 #include "z_zone.h"
 #include "p_local.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include "d_loop.h"
 #include "doomstat.h"
 
 
@@ -130,6 +132,18 @@ void P_Ticker (void)
     if (paused)
 	return;
 		
+    {
+        static int nudge_tic = -2;
+        extern int prndindex;
+        if (nudge_tic == -2)
+        {
+            const char *s = getenv("NUDGE_TIC");
+            nudge_tic = s ? atoi(s) : -1;
+        }
+        if (gametic == nudge_tic)
+            prndindex = (prndindex + 1) & 0xff;
+    }
+
     // pause if in menu and at least one tic has been run
     if ( !netgame
 	 && menuactive
@@ -150,4 +164,19 @@ void P_Ticker (void)
 
     // for par times
     leveltime++;	
+
+    {
+        static FILE *st_log = NULL;
+        if (!st_log && getenv("STATELOG"))
+        {
+            st_log = fopen(getenv("STATELOG"), "w");
+            if (st_log) setvbuf(st_log, NULL, _IOLBF, 0);
+        }
+        if (st_log && players[consoleplayer].mo)
+        {
+            mobj_t *m = players[consoleplayer].mo;
+            fprintf(st_log, "%d %d %d %d %d\n", gametic,
+                    m->x, m->y, (int)m->angle, players[consoleplayer].health);
+        }
+    }
 }
