@@ -20,7 +20,7 @@
 
 #include "i_sound.h"
 #include "i_system.h"
-
+#include "d_loop.h"
 #include "deh_str.h"
 
 #include "doomstat.h"
@@ -501,6 +501,18 @@ void S_StartSound(void *origin_p, int sfx_id)
         pitch += 16 - (M_Random()&31);
     }
     pitch = Clamp(pitch);
+
+
+    {
+	    static FILE *snd_log = NULL;
+	    if (!snd_log && getenv("SNDLOG"))
+	        {
+	            snd_log = fopen(getenv("SNDLOG"), "w");
+	            if (snd_log) setvbuf(snd_log, NULL, _IOLBF, 0);
+	        }
+	    if (snd_log) fprintf(snd_log, "%d %d %d %d %d\n", gametic, sfx_id, volume, sep, pitch);
+    }
+
 
     // kill old sound
     S_StopSound(origin);
