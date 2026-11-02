@@ -12,9 +12,15 @@ Simplifications vs the real engine (fine for a first comparison):
   * no 8-channel limit and no "same source cuts its old sound"
   * linear resampling from the WAD's 11025 Hz samples
 
+Optional 6th column: wall-clock time (seconds since epoch) when the sound was
+requested. With --t0 <recording start>, events are placed by wall time instead
+of tic/35, which keeps real-time recordings in sync even if instances started
+at different moments.
+
 Usage:
   python3 mix_events.py --wad freedoom1.wad --sounds-c src/doom/sounds.c \
-      --out mix.wav s*.txt
+      --out mix.wav ev*.txt
+  python3 mix_events.py ... --t0 $(cat t0.txt) ev*.txt   # wall-clock mode
 """
 import argparse
 import re
@@ -76,6 +82,9 @@ def main():
     ap.add_argument("--skip", type=float, default=0.0,
                     help="seconds to drop from the start (to line up with a video)")
     ap.add_argument("--pitch", action="store_true", help="apply logged pitch")
+    ap.add_argument("--t0", type=float, default=None,
+                    help="wall-clock start of the recording (seconds since epoch); "
+                         "uses the 6th log column (wall time) instead of tic/35")
     args = ap.parse_args()
 
     lumps = read_wad(args.wad)
@@ -101,19 +110,25 @@ def main():
                     continue
                 tic, sid, vol, sep = (int(x) for x in p[:4])
                 pitch = int(p[4]) if len(p) > 4 else 128
-                events.append((tic, sid, vol, sep, pitch))
+                if args.t0 is not None:
+                    if len(p) < 6:
+                        raise SystemExit(f"{path}: --t0 needs a 6th (wall time) column")
+                    when = float(p[5]) - args.t0
+                else:
+                    when = tic / TICRATE
+                events.append((when, sid, vol, sep, pitch))
     if not events:
         raise SystemExit("no events found")
 
     cache = {}
     missing = set()
-    last_tic = max(e[0] for e in events)
-    total = int((last_tic / TICRATE - args.skip + 3.0) * args.rate)
+    last = max(e[0] for e in events)
+    total = int((last - args.skip + 3.0) * args.rate)
     left = np.zeros(max(total, 1), dtype=np.float32)
     right = np.zeros_like(left)
 
-    for tic, sid, vol, sep, pitch in events:
-        t = tic / TICRATE - args.skip
+    for when, sid, vol, sep, pitch in events:
+        t = when - args.skip
         if t < 0:
             continue
         speed = pitch / 128.0 if args.pitch else 1.0
